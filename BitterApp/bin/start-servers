@@ -1,14 +1,9 @@
 #!/usr/bin/env php
 <?php
 
-// Подключаем автозагрузчик Composer для автоматической загрузки классов
 use Symfony\Component\Process\Process;
 require __DIR__.'/../vendor/autoload.php';
 
-/**
- * Класс для запуска серверов разработки Bitter
- * Управляет одновременным запуском Laravel и Vue серверов
- */
 class ServerStarter
 {
     private $laravelProcess;
@@ -20,58 +15,42 @@ class ServerStarter
         echo "Starting Bitter Development Servers...\n";
         echo "=========================================\n\n";
         
-        // Запускаем Laravel сервер с использованием artisan serve
         $this->laravelProcess = new Process([
-            PHP_BINARY,         // Используем текущую версию PHP
-            'artisan',          // Команда Artisan CLI
-            'serve',            // Команда для запуска встроенного сервера
-            '--port=8000',      // Порт для Laravel сервера
-            '--host=localhost'  // Хост для Laravel сервера
+            PHP_BINARY,
+            'artisan',
+            'serve',
+            '--port=8000',
+            '--host=localhost'
         ]);
         
-        // Устанавливаем рабочую директорию для Laravel проекта
         $this->laravelProcess->setWorkingDirectory(__DIR__.'/../bitter-laravel');
-        
-        // Отключаем таймаут для процесса (работает бесконечно)
         $this->laravelProcess->setTimeout(null);
-        
-        // Запускаем процесс Laravel сервера в фоновом режиме
         $this->laravelProcess->start();
         
         sleep(2);
         
-        // Запускаем Vue сервер разработки с помощью npm
         $this->vueProcess = new Process([
-            'npm',          // Менеджер пакетов Node.js
-            'run',          // Запуск npm скрипта
-            'dev',          // Скрипт разработки 
-            '--',           // Разделитель для передачи аргументов npm скрипту
-            '--host'        // Аргумент для Vue CLI - разрешить внешний доступ
+            'npm',
+            'run',
+            'dev',
+            '--',
+            '--host'
         ]);
         
-        // Устанавливаем рабочую директорию для Vue проекта
         $this->vueProcess->setWorkingDirectory(__DIR__.'/../bitter-vue');
-        
-        // Отключаем таймаут для процесса Vue
         $this->vueProcess->setTimeout(null);
-        
-        // Запускаем процесс Vue сервера в фоновом режиме
         $this->vueProcess->start();
         
-        // Выводим информацию о запущенных серверах и их адресах
         echo "\n\nServers are starting...\n";
         echo "Laravel: http://localhost:8000\n";
         echo "Vue: http://localhost:3000\n";
         echo "Press Ctrl+C to stop all servers\n\n";
         
-        // Бесконечный цикл для поддержания работы процессов
-        // Без этого цикла скрипт завершится сразу после запуска процессов
         while (true) {
-            sleep(1); // Ждем 1 секунду перед следующей итерацией
+            sleep(1);
         }
     }
 }
 
-// Создаем экземпляр класса и запускаем серверы
 $starter = new ServerStarter();
 $starter->startDevServers();

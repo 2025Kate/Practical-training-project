@@ -1,60 +1,31 @@
 {
-    // Название проекта в формате vendor/package
     "name": "bitter/app",
-    
-    // Описание проекта
     "description": "Bitter Application with Laravel backend and Vue frontend",
-    
-    // Тип проекта: корневой проект (не библиотека)
     "type": "project",
-    
-    // Основные зависимости для production
     "require": {
-        // Требуемая версия PHP: 8.1 или выше
         "php": "^8.1"
     },
-    
-    // Зависимости для разработки
     "require-dev": {
-        // Компонент для работы с процессами (запуск команд, управление процессами)
         "symfony/process": "^6.0"
     },
-    
-    // Пользовательские скрипты для Composer
     "scripts": {
-        // Основной скрипт установки всех зависимостей
         "install-deps": [
-            // Запуск установки Laravel зависимостей
             "@install-laravel-deps",
-            // Запуск установки Vue зависимостей
             "@install-vue-deps"
         ],
-        
-        // Установка зависимостей для Laravel бэкенда
         "install-laravel-deps": [
             "echo 'Installing Laravel dependencies...'",
-            // Установка Composer пакетов в директории bitter-laravel
             "composer install --working-dir=bitter-laravel"
         ],
-        
-        // Установка зависимостей для Vue фронтенда
         "install-vue-deps": [
             "echo 'Installing Vue dependencies...'",
-            // Установка npm пакетов в директории bitter-vue
             "npm install --prefix bitter-vue"
         ],
-        
-        // Запуск серверов для разработки
         "dev": [
             "echo 'Starting both servers...'",
-            // Запуск кастомного скрипта для одновременного запуска серверов
             "php bin/start-servers"
         ],
-        
-        // Скрипт для запуска Laravel dev сервера на порту 8000
         "laravel-serve": "php artisan serve --port=8000 --working-dir=bitter-laravel",
-        
-        // Скрипт для запуска Vue dev server
         "vue-dev": "npm run dev --prefix bitter-vue"
     }
 }
