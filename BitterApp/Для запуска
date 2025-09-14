@@ -15,3 +15,6 @@ php artisan serve или php artisan serve --port=8000
 rm -rf node_modules package-lock.json
 npm install
 npm run dev
+
+для запуска из composer:
+composer run dev
