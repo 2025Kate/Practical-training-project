@@ -1,69 +1,59 @@
 <template>
-  <!-- Контейнер для кнопок фильтрации -->
   <div class="filter-buttons">
-    <!-- 
-      Кнопка фильтра "Мои посты"
-      @click - обработчик клика, вызывает метод filterPosts с аргументом 'my'
-      :class - динамически добавляет класс 'active' если currentFilter равен 'my'
-    -->
-    <button 
-      @click="filterPosts('my')" 
-      :class="{ active: currentFilter === 'my' }"
+    <!-- Основные кнопки фильтров -->
+    <router-link 
+      :to="{ name: 'filter', params: { filterType: 'my' } }"
+      custom
+      v-slot="{ navigate, isActive }"
     >
-      Мои посты
-    </button>
+      <button 
+        @click="navigate"
+        :class="{ active: isActive || currentFilter === 'my' }"
+      >
+        Мои посты
+      </button>
+    </router-link>
 
-    <!-- 
-      Кнопка фильтра "Подписки"
-      @click - вызывает filterPosts с аргументом 'subscribed'
-      :class - активна если currentFilter равен 'subscribed'
-    -->
-    <button 
-      @click="filterPosts('subscribed')" 
-      :class="{ active: currentFilter === 'subscribed' }"
+    <router-link 
+      :to="{ name: 'filter', params: { filterType: 'subscribed' } }"
+      custom
+      v-slot="{ navigate, isActive }"
     >
-      Посты пользователей, на которых я подписан
-    </button>
+      <button 
+        @click="navigate"
+        :class="{ active: isActive || currentFilter === 'subscribed' }"
+      >
+        Посты пользователей, на которых я подписан
+      </button>
+    </router-link>
 
-    <!-- 
-      Кнопка фильтра "Упоминания"
-      @click - вызывает filterPosts с аргументом 'mentioned'
-      :class - активна если currentFilter равен 'mentioned'
-    -->
-    <button 
-      @click="filterPosts('mentioned')" 
-      :class="{ active: currentFilter === 'mentioned' }"
+    <router-link 
+      :to="{ name: 'filter', params: { filterType: 'mentioned' } }"
+      custom
+      v-slot="{ navigate, isActive }"
     >
-      Посты, где я упомянут
-    </button>
+      <button 
+        @click="navigate"
+        :class="{ active: isActive || currentFilter === 'mentioned' }"
+      >
+        Посты, где я упомянут
+      </button>
+    </router-link>
 
-    <!-- 
-      Динамическая кнопка для фильтра по автору
-      v-if - отображается только когда activeAuthorFilter не пустой
-      @click - вызывает очистку фильтра автора
-      :class - всегда активна (special-filter)
-      × - символ закрытия для очистки фильтра
-    -->
+    <!-- Специальные фильтры -->
     <button 
       v-if="activeAuthorFilter"
-      @click="clearAuthorFilter"
-      :class="{ active: true }"
+      @click="removeAuthorFilter"
+      :class="{ active: isActiveAuthor }"
       class="special-filter"
     >
       Автор: {{ activeAuthorFilter }} ×
     </button>
 
-    <!-- 
-      Динамическая кнопка для фильтра по хэштегу
-      v-if - отображается только когда activeHashtagFilter не пустой
-      @click - вызывает очистку фильтра хэштега
-      :class - всегда активна (special-filter)
-      # - префикс хэштега, × - символ закрытия
-    -->
     <button 
       v-if="activeHashtagFilter"
-      @click="clearHashtagFilter"
-      :class="{ active: true }"
+      @click="removeHashtagFilter"
+      :class="{ active: isActiveHashtag }"
       class="special-filter"
     >
       Хэштег: #{{ activeHashtagFilter }} ×
@@ -73,92 +63,74 @@
 
 <script>
 export default {
-  // Получаемые свойства от родительского компонента
   props: {
-    // Текущий активный фильтр (my, subscribed, mentioned)
     currentFilter: {
       type: String,
-      default: 'my' // Значение по умолчанию
+      default: 'my'
     },
-    // Активный фильтр по автору (если установлен)
     activeAuthorFilter: {
       type: String,
-      default: null // По умолчанию отсутствует
+      default: null
     },
-    // Активный фильтр по хэштегу (если установлен)
     activeHashtagFilter: {
       type: String,
-      default: null // По умолчанию отсутствует
+      default: null
+    }
+  },
+  computed: {
+    isActiveAuthor() {
+      return this.$route.name === 'author' && this.$route.params.authorName === this.activeAuthorFilter;
+    },
+    isActiveHashtag() {
+      return this.$route.name === 'hashtag' && this.$route.params.tag === this.activeHashtagFilter;
     }
   },
   methods: {
-    /**
-     * Метод для обработки клика по кнопке фильтра
-     * @param {string} type - тип фильтра ('my', 'subscribed', 'mentioned')
-     * Генерирует событие 'filter-change' с переданным типом
-     */
-    filterPosts(type) {
-      this.$emit('filter-change', type);
+    removeAuthorFilter() {
+      this.$emit('remove-author-filter');
+      // Возвращаемся к основному фильтру
+      this.$router.push({ name: 'filter', params: { filterType: this.currentFilter } });
     },
-    
-    /**
-     * Метод для очистки фильтра по автору
-     * Генерирует событие 'clear-author-filter'
-     * Родительский компонент должен обработать это событие
-     */
-    clearAuthorFilter() {
-      this.$emit('clear-author-filter');
-    },
-    
-    /**
-     * Метод для очистки фильтра по хэштегу
-     * Генерирует событие 'clear-hashtag-filter'
-     * Родительский компонент должен обработать это событие
-     */
-    clearHashtagFilter() {
-      this.$emit('clear-hashtag-filter');
+    removeHashtagFilter() {
+      this.$emit('remove-hashtag-filter');
+      // Возвращаемся к основному фильтру
+      this.$router.push({ name: 'filter', params: { filterType: this.currentFilter } });
     }
   }
 }
 </script>
 
 <style scoped>
-/* Контейнер для кнопок фильтрации */
 .filter-buttons {
-  display: flex; /* Горизонтальное расположение */
-  justify-content: center; /* Центрирование по горизонтали */
-  margin: 20px 0; /* Отступы сверху и снизу */
-  gap: 10px; /* Расстояние между кнопками */
-  flex-wrap: wrap; /* Перенос на новую строку при нехватке места */
+  display: flex;
+  justify-content: center;
+  margin: 20px 0;
+  gap: 10px;
+  flex-wrap: wrap;
 }
 
-/* Базовые стили для всех кнопок */
 .filter-buttons button {
-  padding: 10px 15px; /* Внутренние отступы */
-  border: none; /* Без рамки */
-  border-radius: 4px; /* Закругленные углы */
-  background-color: #f0f0f0; /* Светло-серый фон */
-  cursor: pointer; /* Указатель при наведении */
-  transition: all 0.3s ease; /* Плавные анимации */
+  padding: 10px 15px;
+  border: none;
+  border-radius: 4px;
+  background-color: #f0f0f0;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: inherit;
 }
 
-/* Стили для активной кнопки (обычные фильтры) */
 .filter-buttons button.active {
-  background-color: #4CAF50; /* Зеленый фон */
-  color: black; /* Черный текст */
+  background-color: #4CAF50;
+  color: black;
 }
 
-/* Стили для специальных кнопок (фильтры по автору/хэштегу) */
 .filter-buttons button.special-filter {
-  background-color: #4CAF50; /* Зеленый фон */
-  color: black; /* Черный текст */
+  background-color: #4CAF50;
+  color: black;
 }
 
-/* Стили при наведении на специальные кнопки */
 .filter-buttons button.special-filter:hover {
-  background-color: #4CAF50; /* Остается зеленым при наведении */
-  /* Можно добавить эффекты: */
-  /* transform: scale(1.05); - увеличение */
-  /* box-shadow: 0 2px 5px rgba(0,0,0,0.2); - тень */
+  background-color: #3e8e41;
 }
 </style>

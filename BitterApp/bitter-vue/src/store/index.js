@@ -5,10 +5,6 @@ import { createStore } from 'vuex';
 // связанные с функциональностью постов
 import posts from './modules/posts';
 
-// Импорт пользовательского плагина для сохранения состояния хранилища
-// между сессиями (например, в localStorage)
-import { persistStatePlugin } from './plugins/persistState';
-
 // Создание и экспорт по умолчанию экземпляра хранилища Vuex
 export default createStore({
   // Раздел modules: регистрация модулей хранилища
@@ -18,8 +14,6 @@ export default createStore({
     posts // Регистрация модуля posts под пространством имен 'posts'
   },
   
-  // Раздел plugins: регистрация плагинов Vuex
-  plugins: [persistStatePlugin] // Регистрация плагина для сохранения состояния
 });
 
 // Структура созданного хранилища:
