@@ -1,0 +1,17 @@
+для запуска MySQL: sudo systemctl start mysql
+для проверки статуса MySQL: sudo systemctl status mysql
+
+
+для запуска laravel: 
+# Откат всех миграций
+php artisan migrate:reset
+# Откат и повторный запуск миграций
+php artisan migrate:refresh
+# Откат, повторный запуск и заполнение данными
+php artisan migrate:refresh --seed
+php artisan serve или php artisan serve --port=8000
+
+для запуска vue: 
+rm -rf node_modules package-lock.json
+npm install
+npm run dev
