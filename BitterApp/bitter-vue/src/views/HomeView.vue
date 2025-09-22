@@ -1,21 +1,7 @@
 <template>
-  <!-- 
-    КОРНЕВОЙ КОНТЕЙНЕР КОМПОНЕНТА HOME
-    Основная страница приложения, содержащая все элементы ленты
-  -->
   <div class="home">
-    <!-- 
-      КОМПОНЕНТ ФОРМЫ СОЗДАНИЯ ПОСТА
-      @create-post - обработчик события создания нового поста
-      Событие генерируется дочерним компонентом при отправке формы
-    -->
     <PostForm @create-post="handleCreatePost" />
     
-    <!-- 
-      КОМПОНЕНТ ФИЛЬТРАЦИИ ПОСТОВ
-      Передаем текущие состояния фильтров через props
-      Слушаем события сброса специальных фильтров
-    -->
     <PostFilter 
       :current-filter="currentFilter" 
       :active-author-filter="activeAuthorFilter"
@@ -24,18 +10,9 @@
       @remove-hashtag-filter="activeHashtagFilter = null"
     />
     
-    <!-- 
-      СОСТОЯНИЯ ЗАГРУЗКИ И ОШИБОК
-      Условный рендеринг на основе состояния данных
-    -->
     <div v-if="isLoading" class="loading">Загрузка...</div>
     <div v-else-if="error" class="error">{{ error }}</div>
     
-    <!-- 
-      КОМПОНЕНТ СПИСКА ПОСТОВ
-      Отображается только если нет загрузки и ошибок
-      Передаем отфильтрованные посты и обработчики фильтрации
-    -->
     <PostList 
       v-else 
       :posts="filteredPosts"
@@ -46,175 +23,234 @@
 </template>
 
 <script>
-// ИМПОРТ ФУНКЦИЙ COMPOSITION API
 import { computed, onMounted, ref, watch } from 'vue'
-
-// ИМПОРТ VUEX ДЛЯ УПРАВЛЕНИЯ СОСТОЯНИЕМ
-import { useStore } from 'vuex'
-
-// ИМПОРТ VUE ROUTER ДЛЯ РАБОТЫ С МАРШРУТИЗАЦИЕЙ
 import { useRoute, useRouter } from 'vue-router'
-
-// ИМПОРТ ДОЧЕРНИХ КОМПОНЕНТОВ
 import PostForm from '@/components/PostForm.vue'
 import PostFilter from '@/components/PostFilter.vue'
 import PostList from '@/components/PostList.vue'
 
 export default {
-  // РЕГИСТРАЦИЯ ДОЧЕРНИХ КОМПОНЕНТОВ
   components: { PostForm, PostFilter, PostList },
   
-  /**
-   * ФУНКЦИЯ SETUP - ОСНОВНАЯ ФУНКЦИЯ COMPOSITION API
-   * Вызывается до создания компонента
-   * Здесь инициализируются все реактивные состояния и логика
-   */
   setup() {
-    // ПОЛУЧАЕМ ЭКЗЕМПЛЯРЫ STORE, ROUTE И ROUTER
-    const store = useStore() // Для управления глобальным состоянием
-    const route = useRoute() // Для доступа к текущему маршруту и параметрам
-    const router = useRouter() // Для программной навигации
+    const route = useRoute()
+    const router = useRouter()
 
-    // РЕАКТИВНЫЕ ПЕРЕМЕННЫЕ ДЛЯ СПЕЦИАЛЬНЫХ ФИЛЬТРОВ
-    const activeAuthorFilter = ref(null) // Фильтр по автору (имя автора или null)
-    const activeHashtagFilter = ref(null) // Фильтр по хэштегу (тег или null)
+    // Состояние
+    const posts = ref([])
+    const authorPosts = ref([])
+    const hashtagPosts = ref([])
+    const currentFilter = ref('my')
+    const activeAuthorFilter = ref(null)
+    const activeHashtagFilter = ref(null)
+    const isLoading = ref(false)
+    const error = ref(null)
 
-    /**
-     * ХУК onMounted - ВЫПОЛНЯЕТСЯ ПОСЛЕ МОНТИРОВАНИЯ КОМПОНЕНТА В DOM
-     * Идеальное место для загрузки данных и инициализации
-     */
-    onMounted(() => {
-      // Загружаем посты при монтировании компонента
-      store.dispatch('posts/fetchPosts')
+    const API_BASE = 'http://localhost:8000/api'
+
+    // Функции для работы с API
+    const fetchPosts = async () => {
+      isLoading.value = true
+      error.value = null
       
-      // Обрабатываем параметры маршрута при первоначальной загрузке
-      handleRouteParams()
-    })
+      try {
+        const response = await fetch(`${API_BASE}/posts`)
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+        
+        const result = await response.json()
+        if (result.success) {
+          posts.value = result.data.map(post => ({
+            id: post.id,
+            text: post.content,
+            author: post.author ? post.author.username : 'Unknown',
+            date: post.DateTime,
+            author_id: post.author_id,
+            hashtags: post.hashtags,
+            mentions: post.mentions
+          }))
+        } else {
+          error.value = result.message || 'Ошибка при загрузке постов'
+        }
+      } catch (err) {
+        error.value = 'Не удалось подключиться к серверу: ' + err.message
+        console.error('Error:', err)
+      } finally {
+        isLoading.value = false
+      }
+    }
 
-    /**
-     * WATCH ДЛЯ ОТСЛЕЖИВАНИЯ ИЗМЕНЕНИЙ МАРШРУТА
-     * Срабатывает при любом изменении URL (навигации)
-     */
-    watch(route, (to) => {
-      // При изменении маршрута обрабатываем новые параметры
-      handleRouteParams()
-    })
+    const fetchPostsByAuthor = async (username) => {
+      isLoading.value = true
+      error.value = null
+      
+      try {
+        const response = await fetch(`${API_BASE}/posts/author/${encodeURIComponent(username)}`)
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+        
+        const result = await response.json()
+        if (result.success) {
+          authorPosts.value = result.posts.map(post => ({
+            id: post.id,
+            text: post.content,
+            author: post.author ? post.author.username : 'Unknown',
+            date: post.DateTime,
+            author_id: post.author_id,
+            hashtags: post.hashtags,
+            mentions: post.mentions
+          }))
+        } else {
+          error.value = result.message || 'Ошибка при загрузке постов автора'
+        }
+      } catch (err) {
+        error.value = 'Не удалось загрузить посты автора: ' + err.message
+        console.error('Error:', err)
+      } finally {
+        isLoading.value = false
+      }
+    }
 
-    /**
-     * ФУНКЦИЯ ОБРАБОТКИ ПАРАМЕТРОВ МАРШРУТА
-     * Анализирует параметры URL и соответствующим образом настраивает состояние
-     */
+    const fetchPostsByHashtag = async (tag) => {
+      isLoading.value = true
+      error.value = null
+      
+      try {
+        const response = await fetch(`${API_BASE}/posts/hashtag/${encodeURIComponent(tag)}`)
+        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`)
+        
+        const result = await response.json()
+        if (result.success) {
+          hashtagPosts.value = result.posts.map(post => ({
+            id: post.id,
+            text: post.content,
+            author: post.author ? post.author.username : 'Unknown',
+            date: post.DateTime,
+            author_id: post.author_id,
+            hashtags: post.hashtags,
+            mentions: post.mentions
+          }))
+        } else {
+          error.value = result.message || 'Ошибка при загрузке постов с хэштегом'
+        }
+      } catch (err) {
+        error.value = 'Не удалось загрузить посты с хэштегом: ' + err.message
+        console.error('Error:', err)
+      } finally {
+        isLoading.value = false
+      }
+    }
+
+    const createPost = async (postData) => {
+      isLoading.value = true
+      error.value = null
+      
+      try {
+        const response = await fetch(`${API_BASE}/posts`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json'
+          },
+          body: JSON.stringify({ content: postData.text })
+        })
+        
+        const result = await response.json()
+        if (result.success) {
+          const newPost = {
+            id: result.data.id,
+            text: result.data.content,
+            author: result.data.author ? result.data.author.username : 'Unknown',
+            date: result.data.DateTime,
+            author_id: result.data.author_id,
+            hashtags: result.data.hashtags,
+            mentions: result.data.mentions
+          }
+          posts.value.unshift(newPost)
+          return { success: true }
+        } else {
+          error.value = result.message || 'Ошибка при создании поста'
+          return { success: false, errors: result.errors }
+        }
+      } catch (err) {
+        error.value = 'Не удалось подключиться к серверу'
+        console.error('Error creating post:', err)
+        return { success: false }
+      } finally {
+        isLoading.value = false
+      }
+    }
+
+    // Обработка параметров маршрута
     const handleRouteParams = () => {
-      // ДЕСТРУКТУРИЗАЦИЯ ПАРАМЕТРОВ МАРШРУТА
       const { filterType, authorName, tag } = route.params
       
-      // СБРАСЫВАЕМ СПЕЦИАЛЬНЫЕ ФИЛЬТРЫ ПЕРЕД ОБРАБОТКОЙ НОВЫХ ПАРАМЕТРОВ
       activeAuthorFilter.value = null
       activeHashtagFilter.value = null
       
-      // ОБРАБОТКА РАЗЛИЧНЫХ ТИПОВ МАРШРУТОВ
       if (filterType) {
-        // ОСНОВНОЙ ФИЛЬТР: my, subscribed, mentioned
-        store.dispatch('posts/setFilter', filterType)
+        currentFilter.value = filterType
+        fetchPosts()
       } else if (authorName) {
-        // ФИЛЬТР ПО АВТОРУ: /author/username
         activeAuthorFilter.value = authorName
-        store.dispatch('posts/fetchPostsByAuthor', authorName)
+        fetchPostsByAuthor(authorName)
       } else if (tag) {
-        // ФИЛЬТР ПО ХЭШТЕГУ: /hashtag/vuejs
         activeHashtagFilter.value = tag
-        store.dispatch('posts/fetchPostsByHashtag', tag)
+        fetchPostsByHashtag(tag)
       } else {
-        // МАРШРУТ ПО УМОЛЧАНИЮ: / (корневой путь)
-        store.dispatch('posts/setFilter', 'my')
+        currentFilter.value = 'my'
+        fetchPosts()
       }
     }
 
-    // ВЫЧИСЛЯЕМЫЕ СВОЙСТВА ДЛЯ ПОЛУЧЕНИЯ ДАННЫХ ИЗ VUEX STORE
-    const currentFilter = computed(() => store.state.posts.currentFilter) // Текущий активный фильтр
-    const allPosts = computed(() => store.state.posts.posts) // Все посты
-    const authorPosts = computed(() => store.state.posts.authorPosts) // Посты конкретного автора
-    const hashtagPosts = computed(() => store.state.posts.hashtagPosts) // Посты с конкретным хэштегом
-    const isLoading = computed(() => store.getters['posts/isLoading']) // Состояние загрузки
-    const error = computed(() => store.getters['posts/error']) // Сообщение об ошибке
-
-    /**
-     * ВЫЧИСЛЯЕМОЕ СВОЙСТВО ДЛЯ ФИЛЬТРАЦИИ ПОСТОВ
-     * Автоматически пересчитывается при изменении зависимостей
-     */
+    // Вычисляемые свойства
     const filteredPosts = computed(() => {
-      // ЕСЛИ АКТИВЕН ФИЛЬТР ПО АВТОРУ - ВОЗВРАЩАЕМ ПОСТЫ АВТОРА
-      if (activeAuthorFilter.value) {
-        return authorPosts.value;
-      }
+      if (activeAuthorFilter.value) return authorPosts.value
+      if (activeHashtagFilter.value) return hashtagPosts.value
       
-      // ЕСЛИ АКТИВЕН ФИЛЬТР ПО ХЭШТЕГУ - ВОЗВРАЩАЕМ ПОСТЫ С ХЭШТЕГОМ
-      if (activeHashtagFilter.value) {
-        return hashtagPosts.value;
-      }
+      const currentUserId = 1
+      const mockSubscriptions = [1, 5]
       
-      // МОК-ДАННЫЕ ДЛЯ ДЕМОНСТРАЦИИ (В РЕАЛЬНОМ ПРИЛОЖЕНИИ БРАТЬ ИЗ STORE/USER)
-      const currentUserId = 1; // ID текущего пользователя
-      const mockSubscriptions = [1, 5]; // ID авторов, на которых подписан пользователь
-      
-      // ФИЛЬТРАЦИЯ ПОСТОВ НА ОСНОВЕ ВЫБРАННОГО ФИЛЬТРА
-      return allPosts.value.filter(post => {
+      return posts.value.filter(post => {
         if (currentFilter.value === 'my') {
-          // ПОКАЗЫВАТЬ ТОЛЬКО ПОСТЫ ТЕКУЩЕГО ПОЛЬЗОВАТЕЛЯ
-          return post.author_id === currentUserId;
+          return post.author_id === currentUserId
         } else if (currentFilter.value === 'subscribed') {
-          // ПОКАЗЫВАТЬ ПОСТЫ АВТОРОВ, НА КОТОРЫХ ПОДПИСАН ПОЛЬЗОВАТЕЛЬ
-          // Исключаем собственные посты (они уже в фильтре 'my')
-          return mockSubscriptions.includes(post.author_id) && post.author_id !== currentUserId;
+          return mockSubscriptions.includes(post.author_id) && post.author_id !== currentUserId
         } else if (currentFilter.value === 'mentioned') {
-          // ПОКАЗЫВАТЬ ПОСТЫ, ГДЕ УПОМЯНУТ ПОЛЬЗОВАТЕЛЬ
-          return post.mentions && post.mentions.some(mention => mention.id === currentUserId);
+          return post.mentions && post.mentions.some(mention => mention.id === currentUserId)
         }
-        // ЕСЛИ ФИЛЬТР НЕ РАСПОЗНАН - ПОКАЗЫВАТЬ ВСЕ ПОСТЫ
-        return true;
-      });
+        return true
+      })
     })
 
-    /**
-     * ОБРАБОТЧИК СОЗДАНИЯ НОВОГО ПОСТА
-     * Вызывается при событии @create-post из компонента PostForm
-     */
+    // Обработчики событий
     const handleCreatePost = async (postData) => {
-      // ДИСПАТЧИМ ДЕЙСТВИЕ СОЗДАНИЯ ПОСТА В VUEX STORE
-      const result = await store.dispatch('posts/createPost', postData)
-      
-      // ОБРАБОТКА РЕЗУЛЬТАТА (ОШИБОК СОЗДАНИЯ)
+      const result = await createPost(postData)
       if (result && !result.success) {
         console.error('Ошибка создания поста:', result.errors)
-        // В РЕАЛЬНОМ ПРИЛОЖЕНИИ: показать уведомление пользователю
       }
     }
 
-    /**
-     * ОБРАБОТЧИК ФИЛЬТРАЦИИ ПО АВТОРУ
-     * Вызывается при клике на имя автора в компоненте PostList
-     */
     const handleAuthorFilter = (authorName) => {
-      // НАВИГАЦИЯ К МАРШРУТУ АВТОРА ЧЕРЕЗ VUE ROUTER
-      // Это обеспечивает корректный URL и возможность использования кнопки "Назад"
       router.push({ name: 'author', params: { authorName } })
     }
 
-    /**
-     * ОБРАБОТЧИК ФИЛЬТРАЦИИ ПО ХЭШТЕГУ
-     * Вызывается при клике на хэштег в компоненте PostList
-     */
     const handleHashtagFilter = (tag) => {
-      // НАВИГАЦИЯ К МАРШРУТУ ХЭШТЕГА
       router.push({ name: 'hashtag', params: { tag } })
     }
 
-    // ВОЗВРАЩАЕМ ВСЕ СВОЙСТВА И МЕТОДЫ ДЛЯ ИСПОЛЬЗОВАНИЯ В TEMPLATE
+    // Хуки
+    onMounted(() => {
+      handleRouteParams()
+    })
+
+    watch(route, () => {
+      handleRouteParams()
+    })
+
     return { 
-      currentFilter, 
-      filteredPosts, 
-      isLoading, 
-      error, 
+      currentFilter,
+      filteredPosts,
+      isLoading,
+      error,
       activeAuthorFilter,
       activeHashtagFilter,
       handleCreatePost,
@@ -227,26 +263,24 @@ export default {
 
 <style scoped>
 .home {
-  max-width: 800px; /* Максимальная ширина контента */
-  margin: 0 auto; /* Центрирование по горизонтали */
-  padding: 20px; /* Внутренние отступы */
-  font-family: Arial, sans-serif; /* Шрифт по умолчанию */
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: Arial, sans-serif;
 }
 
-/* СТИЛЬ ДЛЯ СОСТОЯНИЯ ЗАГРУЗКИ */
 .loading {
-  text-align: center; /* Центрирование текста */
-  padding: 20px; /* Отступы */
-  color: #666; /* Цвет текста */
+  text-align: center;
+  padding: 20px;
+  color: #666;
 }
 
-/* СТИЛЬ ДЛЯ СООБЩЕНИЙ ОБ ОШИБКАХ */
 .error {
-  text-align: center; /* Центрирование текста */
-  padding: 20px; /* Отступы */
-  color: #d32f2f; /* Красный цвет для ошибок */
-  background-color: #ffebee; /* Светло-красный фон */
-  border-radius: 4px; /* Закругленные углы */
-  margin: 20px 0; /* Внешние отступы */
+  text-align: center;
+  padding: 20px;
+  color: #d32f2f;
+  background-color: #ffebee;
+  border-radius: 4px;
+  margin: 20px 0;
 }
 </style>
