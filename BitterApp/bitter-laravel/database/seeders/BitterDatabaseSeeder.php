@@ -9,6 +9,13 @@ class BitterDatabaseSeeder extends Seeder
 {
     public function run()
     {
+
+        // Проверяем, есть ли уже пользователи
+        if (DB::table('users')->count() > 0) {
+            $this->command->info('Данные уже существуют, пропускаем сидинг.');
+            return;
+        }
+
         // Очищаем таблицы в правильном порядке (из-за foreign keys)
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         
