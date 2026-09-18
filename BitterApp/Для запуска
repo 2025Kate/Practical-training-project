@@ -16,5 +16,10 @@ rm -rf node_modules package-lock.json
 npm install
 npm run dev
 
-для запуска из composer:
-composer run dev
+для запуска из docker-compose:
+docker-compose down
+docker-compose up
+# Останавливает контейнеры и УДАЛЯЕТ volumes
+docker-compose down -v
+# Пересобирает образы и запускает с сохраненными данными
+docker-compose up --build
