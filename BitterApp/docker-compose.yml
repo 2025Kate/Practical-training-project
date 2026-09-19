@@ -1,0 +1,75 @@
+services:
+  mysql:
+    image: mysql:8.0.33
+    container_name: bitter-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: Bitter_DB
+      MYSQL_ROOT_PASSWORD: Password
+      MYSQL_USER: User
+      MYSQL_PASSWORD: bitter_user
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql  # Добавьте эту строку
+    ports:
+      - "3307:3306"
+    networks:
+      - bitter-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p123456"]
+      interval: 10s
+      timeout: 30s
+      retries: 10
+
+  laravel:
+    build:
+      context: ./bitter-laravel
+      dockerfile: Dockerfile
+    container_name: bitter-laravel
+    restart: unless-stopped
+    working_dir: /var/www
+    volumes:
+      - ./bitter-laravel:/var/www
+    environment:
+      - APP_ENV=local
+      - APP_DEBUG=true
+      - DB_CONNECTION=mysql
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_DATABASE=Bitter_DB
+      - DB_USERNAME=User
+      - DB_PASSWORD=Password
+    ports:
+      - "8000:8000"
+    networks:
+      - bitter-network
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  vue:
+    build:
+      context: ./bitter-vue
+      dockerfile: Dockerfile
+    container_name: bitter-vue
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./bitter-vue:/app
+      - /app/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - VITE_API_BASE_URL=http://localhost:8000/api
+    networks:
+      - bitter-network
+    depends_on:
+      - laravel
+
+volumes:
+  mysql_data:
+    driver: local
+
+networks:
+  bitter-network:
+    driver: bridge
